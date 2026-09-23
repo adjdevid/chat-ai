@@ -10,13 +10,40 @@ import { db, OperationType, handleFirestoreError } from './firebase';
 import { ChatSession } from '../types';
 
 /**
+ * Recursively removes any keys with `undefined` values from objects or arrays
+ * to ensure compatibility with Firestore setDoc and updateDoc calls.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return null as any;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeForFirestore(item)) as any;
+  }
+
+  if (typeof data === 'object' && !(data instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const key of Object.keys(data as Record<string, any>)) {
+      const value = (data as Record<string, any>)[key];
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned as any;
+  }
+
+  return data;
+}
+
+/**
  * Save or update a single chat session in Firestore for a logged-in user
  */
 export async function saveSessionToFirestore(userId: string, session: ChatSession): Promise<void> {
   if (!userId || !session || !session.id) return;
   const path = `users/${userId}/sessions/${session.id}`;
   try {
-    const payload = {
+    const rawPayload = {
       id: session.id,
       userId,
       title: session.title || 'Percakapan AI',
@@ -27,6 +54,7 @@ export async function saveSessionToFirestore(userId: string, session: ChatSessio
       createdAt: session.createdAt || new Date().toISOString(),
       updatedAt: session.updatedAt || Date.now(),
     };
+    const payload = sanitizeForFirestore(rawPayload);
     await setDoc(doc(db, 'users', userId, 'sessions', session.id), payload, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);

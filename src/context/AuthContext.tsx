@@ -99,8 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const userDocRef = doc(db, 'users', user.uid);
             setDoc(userDocRef, {
-              tokensUsedToday: data.usedToday,
-              dailyLimit: data.dailyLimit,
+              tokensUsedToday: data.usedToday ?? 0,
+              dailyLimit: data.dailyLimit ?? DEFAULT_GOOGLE_DAILY_LIMIT,
               lastResetDate: getTodayString(),
               updatedAt: new Date().toISOString(),
             }, { merge: true }).catch(() => {});
