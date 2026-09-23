@@ -58,8 +58,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="p-2 sm:p-2.5 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-700 shrink-0">
-              <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5 animate-spin-slow" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-black border border-slate-800 p-0.5 shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+              <img
+                src="/file_00000000099c81fa869151d29ba1a5e7.png"
+                alt="ADJDEV"
+                className="w-full h-full object-contain rounded-xl"
+              />
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-extrabold text-slate-900">Pengaturan Sistem & Akun</h3>

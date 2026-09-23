@@ -57,10 +57,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* ADJDEV AI Logo */}
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('chat')}>
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-purple-600 p-0.5 shadow-sm">
-            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-              <Cpu className="w-5 h-5 text-cyan-600" />
-            </div>
+          <div className="w-9 h-9 rounded-xl bg-black border border-slate-800 p-0.5 shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+            <img
+              src="/file_00000000099c81fa869151d29ba1a5e7.png"
+              alt="ADJDEV Icon Logo"
+              className="w-full h-full object-contain rounded-lg"
+            />
           </div>
           <div>
             <div className="flex items-center gap-1.5">

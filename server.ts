@@ -57,12 +57,16 @@ function getTodayString(): string {
 
 function getClientIdentifier(req: Request): { key: string; isGoogleUser: boolean; userId?: string } {
   const userIdBody = req.body?.userId;
-  const deviceIdHeader = (req.headers['x-device-id'] as string) || req.body?.deviceId || 'fp_unknown';
+  const userIdQuery = req.query?.userId as string;
+  const userIdHeader = req.headers['x-user-id'] as string;
+  const userId = userIdBody || userIdQuery || userIdHeader;
+
+  const deviceIdHeader = (req.headers['x-device-id'] as string) || req.body?.deviceId || (req.query?.deviceId as string) || 'fp_unknown';
   const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || '127.0.0.1';
 
   // Logged-in Google User
-  if (userIdBody && typeof userIdBody === 'string' && userIdBody.trim() !== '') {
-    return { key: `user:${userIdBody.trim()}`, isGoogleUser: true, userId: userIdBody.trim() };
+  if (userId && typeof userId === 'string' && userId.trim() !== '') {
+    return { key: `user:${userId.trim()}`, isGoogleUser: true, userId: userId.trim() };
   }
 
   // Guest User: IP + Device Fingerprint hash prevents reset via clearing localStorage

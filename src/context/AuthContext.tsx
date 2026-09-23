@@ -58,16 +58,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
   const [deviceId] = useState<string>(() => getDeviceFingerprint());
 
-  // Guest Local Storage tracking
-  const [guestTokensUsed, setGuestTokensUsed] = useState<number>(0);
+  // Guest Local Storage tracking with date check
+  const [guestTokensUsed, setGuestTokensUsed] = useState<number>(() => {
+    try {
+      const savedDate = localStorage.getItem('adjdev_guest_token_date');
+      const savedAmount = localStorage.getItem('adjdev_guest_token_used');
+      const today = getTodayString();
+      if (savedDate === today && savedAmount) {
+        return parseInt(savedAmount, 10) || 0;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 0;
+  });
 
   // Sync server quota directly
   const syncServerQuota = useCallback(async () => {
     try {
+      const headers: Record<string, string> = {
+        'x-device-id': deviceId,
+      };
+      if (user?.uid) {
+        headers['x-user-id'] = user.uid;
+      }
+
       const res = await fetch(`/api/quota`, {
-        headers: {
-          'x-device-id': deviceId,
-        },
+        headers,
         method: 'GET',
       });
       if (res.ok) {
@@ -92,12 +109,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } else {
           setGuestTokensUsed(data.usedToday);
+          try {
+            localStorage.setItem('adjdev_guest_token_date', getTodayString());
+            localStorage.setItem('adjdev_guest_token_used', data.usedToday.toString());
+          } catch (e) {
+            // ignore
+          }
         }
       }
     } catch (e) {
       console.warn('Quota sync warning:', e);
     }
-  }, [deviceId, user, profile]);
+  }, [deviceId, user]);
 
   // Sync profile data from Firestore
   const syncUserProfile = async (currentUser: User) => {

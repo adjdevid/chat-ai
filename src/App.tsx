@@ -264,6 +264,7 @@ export default function App() {
         headers: {
           'Content-Type': 'application/json',
           'x-device-id': deviceId,
+          ...(user?.uid ? { 'x-user-id': user.uid } : {}),
         },
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
@@ -328,6 +329,8 @@ export default function App() {
                       ? data.stats.latencyMs
                       : prev.fastestLatencyMs,
                 }));
+                // Refresh quota counter immediately
+                syncServerQuota();
               }
 
               // Detect embedded chart recommendations from assistant text if in analytics mode

@@ -36,6 +36,7 @@ export const DeepAuditPanel: React.FC<DeepAuditPanelProps> = ({ dataset, onOpenI
         headers: {
           'Content-Type': 'application/json',
           'x-device-id': deviceId,
+          ...(user?.uid ? { 'x-user-id': user.uid } : {}),
         },
         body: JSON.stringify({
           dataSample: dataset.data.slice(0, 40),
