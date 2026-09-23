@@ -1,0 +1,10 @@
+<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" rx="24" fill="#000000"/>
+  <!-- Blue 'A' Monogram -->
+  <path d="M 100 32 L 30 158" stroke="#0075FF" stroke-width="17" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M 100 32 L 131 88" stroke="#0075FF" stroke-width="17" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M 77 101 L 117 158" stroke="#0075FF" stroke-width="17" stroke-linecap="square" stroke-linejoin="miter"/>
+  
+  <!-- White 'D' Monogram -->
+  <path d="M 88 94 L 128 94 C 164 94 164 150 128 150 L 117 150" stroke="#FFFFFF" stroke-width="17" stroke-linecap="square" stroke-linejoin="miter" fill="none"/>
+</svg>

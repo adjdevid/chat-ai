@@ -19,13 +19,15 @@
     },
     "UserSession": {
       "title": "UserSession",
-      "description": "Chat session owned by user",
+      "description": "Chat session owned by user with message history",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
         "userId": { "type": "string", "maxLength": 128 },
         "title": { "type": "string", "maxLength": 256 },
         "mode": { "type": "string", "enum": ["analytics", "general"] },
+        "activeDatasetId": { "type": "string", "maxLength": 128 },
+        "isPinned": { "type": "boolean" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "number" }
       },
@@ -52,7 +54,7 @@
     },
     "/users/{userId}/sessions/{sessionId}": {
       "schema": "UserSession",
-      "description": "User saved chat sessions"
+      "description": "User saved chat sessions and history across devices"
     },
     "/guest_quotas/{deviceId}": {
       "schema": "GuestQuota",

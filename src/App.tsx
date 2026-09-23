@@ -19,6 +19,12 @@ import { DatasetUploadModal } from './components/DatasetUploadModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { useAuth } from './context/AuthContext';
+import {
+  saveSessionToFirestore,
+  deleteSessionFromFirestore,
+  subscribeUserSessions,
+  syncLocalSessionsToFirestore,
+} from './utils/chatFirestore';
 import { Zap, ShieldAlert, User as UserIcon, X } from 'lucide-react';
 
 const STORAGE_KEY_SESSIONS = 'adjdev_ai_chat_sessions_v2';
@@ -116,6 +122,37 @@ export default function App() {
     }
   }, [sessions]);
 
+  // Real-time Firestore session synchronization when user is logged in
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    let isMounted = true;
+
+    const unsubscribe = subscribeUserSessions(user.uid, (remoteSessions) => {
+      if (!isMounted) return;
+
+      if (remoteSessions.length > 0) {
+        setSessions(remoteSessions);
+        setCurrentSessionId((prevId) => {
+          if (remoteSessions.some((s) => s.id === prevId)) return prevId;
+          return remoteSessions[0].id;
+        });
+      } else {
+        // Upload local offline sessions to Firestore if user logs in for the first time
+        syncLocalSessionsToFirestore(user.uid, sessions).then(() => {
+          if (sessions.length > 0 && isMounted) {
+            sessions.forEach((s) => saveSessionToFirestore(user.uid, s));
+          }
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [user?.uid]);
+
   // Sync active dataset and chatMode when switching sessions
   useEffect(() => {
     if (currentSession) {
@@ -134,9 +171,14 @@ export default function App() {
   // Handle Mode Toggle
   const handleToggleChatMode = (mode: ChatMode) => {
     setChatMode(mode);
-    setSessions((prev) =>
-      prev.map((s) => (s.id === currentSessionId ? { ...s, mode } : s))
-    );
+    setSessions((prev) => {
+      const next = prev.map((s) => (s.id === currentSessionId ? { ...s, mode } : s));
+      const updated = next.find((s) => s.id === currentSessionId);
+      if (updated && user?.uid) {
+        saveSessionToFirestore(user.uid, updated);
+      }
+      return next;
+    });
   };
 
   // Add new dataset from modal
@@ -154,9 +196,16 @@ export default function App() {
     setActiveDataset(dataset);
 
     // Update active dataset on current session
-    setSessions((prev) =>
-      prev.map((s) => (s.id === currentSessionId ? { ...s, activeDatasetId: dataset.id } : s))
-    );
+    setSessions((prev) => {
+      const next = prev.map((s) =>
+        s.id === currentSessionId ? { ...s, activeDatasetId: dataset.id } : s
+      );
+      const updated = next.find((s) => s.id === currentSessionId);
+      if (updated && user?.uid) {
+        saveSessionToFirestore(user.uid, updated);
+      }
+      return next;
+    });
   };
 
   // Create New Session
@@ -173,6 +222,9 @@ export default function App() {
     setSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setActiveTab('chat');
+    if (user?.uid) {
+      saveSessionToFirestore(user.uid, newSession);
+    }
   };
 
   // Delete Session
@@ -183,13 +235,23 @@ export default function App() {
     if (currentSessionId === id) {
       setCurrentSessionId(remaining[0].id);
     }
+    if (user?.uid) {
+      deleteSessionFromFirestore(user.uid, id);
+    }
   };
 
   // Clear current chat
   const handleClearChat = () => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === currentSessionId ? { ...s, messages: [] } : s))
-    );
+    setSessions((prev) => {
+      const next = prev.map((s) =>
+        s.id === currentSessionId ? { ...s, messages: [] } : s
+      );
+      const updated = next.find((s) => s.id === currentSessionId);
+      if (updated && user?.uid) {
+        saveSessionToFirestore(user.uid, updated);
+      }
+      return next;
+    });
   };
 
   // Stop Streaming
@@ -237,18 +299,20 @@ export default function App() {
 
     const updatedMessages = [...currentSession.messages, userMessage, assistantMessage];
 
+    const initialUpdatedSession: ChatSession = {
+      ...currentSession,
+      title: newTitle,
+      messages: updatedMessages,
+      updatedAt: Date.now(),
+    };
+
     setSessions((prev) =>
-      prev.map((s) =>
-        s.id === currentSessionId
-          ? {
-              ...s,
-              title: newTitle,
-              messages: updatedMessages,
-              updatedAt: Date.now(),
-            }
-          : s
-      )
+      prev.map((s) => (s.id === currentSessionId ? initialUpdatedSession : s))
     );
+
+    if (user?.uid) {
+      saveSessionToFirestore(user.uid, initialUpdatedSession);
+    }
 
     setIsStreaming(true);
     abortControllerRef.current = new AbortController();
@@ -414,6 +478,15 @@ export default function App() {
       setIsStreaming(false);
       abortControllerRef.current = null;
       await syncServerQuota();
+      if (user?.uid) {
+        setSessions((prev) => {
+          const finalSession = prev.find((s) => s.id === currentSessionId);
+          if (finalSession && user?.uid) {
+            saveSessionToFirestore(user.uid, finalSession);
+          }
+          return prev;
+        });
+      }
     }
   };
 

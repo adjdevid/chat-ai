@@ -100,9 +100,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5 text-cyan-600" /> Riwayat Chat
               </span>
-              <span className="text-[10px] font-mono text-slate-400">
-                {sessions.length} Sesi
-              </span>
+              <div className="flex items-center gap-1">
+                {user && (
+                  <span className="text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60" title="Riwayat tersimpan di Firestore DB lintas perangkat">
+                    Cloud DB
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-slate-400">
+                  {sessions.length} Sesi
+                </span>
+              </div>
             </div>
 
             {sessions.length > 3 && (
