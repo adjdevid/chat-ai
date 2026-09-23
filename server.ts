@@ -4,9 +4,6 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initializeApp as initAdminApp, getApps as getAdminApps } from 'firebase-admin/app';
-import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
-import firebaseConfig from './firebase-applet-config.json';
 
 dotenv.config();
 
@@ -18,19 +15,6 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-
-// Initialize Firebase Admin SDK for Server-Side Token Quota Persistence
-let adminDb: any = null;
-try {
-  if (!getAdminApps().length) {
-    initAdminApp({
-      projectId: firebaseConfig.projectId,
-    });
-  }
-  adminDb = getAdminFirestore(firebaseConfig.firestoreDatabaseId);
-} catch (err) {
-  console.warn('⚠️ Firebase Admin Initialization Warning:', err);
-}
 
 // Initialize Gemini Client
 const apiKey = process.env.GEMINI_API_KEY;
@@ -144,39 +128,6 @@ function recordUsageServer(key: string, isGoogleUser: boolean, tokenAmount: numb
   record.usedToday += tokenAmount;
   record.totalUsed += tokenAmount;
   serverQuotaStore.set(key, record);
-
-  // Sync with Firestore in background if available
-  if (adminDb) {
-    try {
-      if (isGoogleUser && userId) {
-        const userRef = adminDb.collection('users').doc(userId);
-        userRef.set({
-          tokensUsedToday: record.usedToday,
-          totalTokensUsed: record.totalUsed,
-          lastResetDate: today,
-          dailyLimit,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true }).catch((e: any) => {
-          // Admin SDK might lack write IAM permissions in preview env; client SDK will persist user profile
-          if (process.env.DEBUG_FIREBASE) console.debug('Firestore Admin sync notice:', e?.message);
-        });
-      } else {
-        const cleanDeviceId = key.replace('guest:', '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 100);
-        const guestRef = adminDb.collection('guest_quotas').doc(cleanDeviceId);
-        guestRef.set({
-          deviceId: cleanDeviceId,
-          tokensUsedToday: record.usedToday,
-          dailyLimit,
-          lastResetDate: today,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true }).catch((e: any) => {
-          if (process.env.DEBUG_FIREBASE) console.debug('Firestore Admin guest sync notice:', e?.message);
-        });
-      }
-    } catch (e) {
-      // Silently catch initialization/permission errors
-    }
-  }
 
   return record;
 }
