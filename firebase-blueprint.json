@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile and token quota metrics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 512 },
+        "tokensUsedToday": { "type": "number" },
+        "dailyLimit": { "type": "number" },
+        "lastResetDate": { "type": "string", "maxLength": 10 },
+        "totalTokensUsed": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "UserSession": {
+      "title": "UserSession",
+      "description": "Chat session owned by user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "mode": { "type": "string", "enum": ["analytics", "general"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and daily token usage quota limits"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "UserSession",
+      "description": "User saved chat sessions"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "ADJDEV AI - Real-time Data Analytics & Chat",
+  "description": "Ultra-fast AI Chat and Real-time Data Analysis Dashboard powered by Flash Lite for data scientists, developers, and business professionals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
