@@ -140,9 +140,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const activePrompts = chatMode === 'general' ? generalPrompts : analyticsPrompts;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white text-slate-800 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-white text-slate-800 overflow-hidden">
       {/* Top Context & Mode Switcher Bar */}
-      <div className="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="px-4 py-2.5 shrink-0 bg-slate-50/90 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Mode Selector Toggle */}
         <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200 shadow-2xs">
           <button
@@ -198,7 +198,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Message List */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 bg-slate-50/80">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6 space-y-6 bg-slate-50/80">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[400px] text-center max-w-xl mx-auto space-y-5">
             <div className="relative">
@@ -364,7 +364,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="p-3 lg:p-4 bg-white border-t border-slate-200">
+      <div className="p-3 lg:p-4 shrink-0 bg-white border-t border-slate-200">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto relative">
           <div className="relative flex items-end rounded-3xl border border-slate-200 bg-slate-50/80 p-2 focus-within:border-cyan-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-cyan-500/10 transition-all shadow-xs">
             {/* Attachment Button */}

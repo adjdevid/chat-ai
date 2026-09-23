@@ -411,7 +411,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full max-w-full overflow-hidden bg-slate-50 font-sans text-slate-900 relative">
+    <div className="flex flex-col h-[100dvh] w-full max-w-full overflow-hidden bg-slate-50 font-sans text-slate-900 relative">
       {/* Auth Error Banner / Toast */}
       {authError && (
         <div className="absolute top-18 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xl max-w-sm text-xs animate-in fade-in slide-in-from-top-2">
@@ -440,7 +440,7 @@ export default function App() {
       />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex overflow-hidden relative pb-14 md:pb-0">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative pb-14 md:pb-0">
         {/* Left Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}
@@ -459,7 +459,7 @@ export default function App() {
         />
 
         {/* Dynamic View Panel */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-white relative">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white relative">
           {activeTab === 'chat' && (
             <ChatPanel
               messages={currentSession.messages}

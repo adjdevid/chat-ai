@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const usagePercentage = Math.min(100, Math.round((usedTokens / maxTokens) * 100));
 
   return (
-    <header className="h-16 border-b border-slate-200/90 bg-white/95 backdrop-blur-md px-3 lg:px-6 flex items-center justify-between z-30 sticky top-0 shadow-2xs">
+    <header className="h-16 shrink-0 w-full border-b border-slate-200/90 bg-white/95 backdrop-blur-md px-3 lg:px-6 flex items-center justify-between z-30 shadow-2xs">
       {/* Brand & Mobile Sidebar Toggle */}
       <div className="flex items-center gap-3">
         <button
