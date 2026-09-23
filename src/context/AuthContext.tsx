@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   User,
   onAuthStateChanged,
@@ -12,6 +12,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, OperationType, handleFirestoreError } from '../utils/firebase';
+import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 
 export interface UserTokenProfile {
   uid: string;
@@ -31,10 +32,12 @@ interface AuthContextType {
   loading: boolean;
   isAuthPending: boolean;
   authError: string | null;
+  deviceId: string;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   checkHasQuota: (estimatedTokens?: number) => boolean;
   recordTokenUsage: (amount: number) => Promise<boolean>;
+  syncServerQuota: () => Promise<void>;
   guestTokensUsed: number;
   guestDailyLimit: number;
   clearAuthError: () => void;
@@ -53,18 +56,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [isAuthPending, setIsAuthPending] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [deviceId] = useState<string>(() => getDeviceFingerprint());
 
   // Guest Local Storage tracking
-  const [guestTokensUsed, setGuestTokensUsed] = useState<number>(() => {
+  const [guestTokensUsed, setGuestTokensUsed] = useState<number>(0);
+
+  // Sync server quota directly
+  const syncServerQuota = useCallback(async () => {
     try {
-      const saved = localStorage.getItem('adjdev_guest_tokens');
-      const savedDate = localStorage.getItem('adjdev_guest_date');
-      if (savedDate === getTodayString() && saved) {
-        return parseInt(saved, 10) || 0;
+      const res = await fetch(`/api/quota`, {
+        headers: {
+          'x-device-id': deviceId,
+        },
+        method: 'GET',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (user) {
+          setProfile((prev) => prev ? {
+            ...prev,
+            tokensUsedToday: data.usedToday,
+            dailyLimit: data.dailyLimit,
+          } : null);
+          // Persist to user Firestore document with client auth credentials
+          try {
+            const userDocRef = doc(db, 'users', user.uid);
+            setDoc(userDocRef, {
+              tokensUsedToday: data.usedToday,
+              dailyLimit: data.dailyLimit,
+              lastResetDate: getTodayString(),
+              updatedAt: new Date().toISOString(),
+            }, { merge: true }).catch(() => {});
+          } catch (err) {
+            // ignore
+          }
+        } else {
+          setGuestTokensUsed(data.usedToday);
+        }
       }
-    } catch {}
-    return 0;
-  });
+    } catch (e) {
+      console.warn('Quota sync warning:', e);
+    }
+  }, [deviceId, user, profile]);
 
   // Sync profile data from Firestore
   const syncUserProfile = async (currentUser: User) => {
@@ -104,6 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await setDoc(userDocRef, newProfile);
         setProfile(newProfile);
       }
+      await syncServerQuota();
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
     }
@@ -116,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await syncUserProfile(currentUser);
       } else {
         setProfile(null);
+        await syncServerQuota();
       }
       setLoading(false);
     });
@@ -138,7 +173,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorCode === 'auth/cancelled-popup-request' ||
         errorCode === 'auth/popup-closed-by-user'
       ) {
-        // User closed or cancelled the popup safely - do not treat as an unhandled error
         console.log('Login Google dibatalkan oleh pengguna.');
       } else if (errorCode === 'auth/popup-blocked') {
         setAuthError('Popup login diblokir oleh peramban. Harap izinkan popup.');
@@ -155,6 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await signOut(auth);
       setProfile(null);
+      await syncServerQuota();
     } catch (error) {
       console.error('Gagal Logout:', error);
     }
@@ -169,44 +204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (guestTokensUsed + estimatedTokens) <= DEFAULT_GUEST_DAILY_LIMIT;
   };
 
-  // Record token usage after a response is generated
+  // Sync token usage with server
   const recordTokenUsage = async (amount: number): Promise<boolean> => {
-    if (amount <= 0) return true;
-
-    if (user && profile) {
-      const today = getTodayString();
-      const userDocRef = doc(db, 'users', user.uid);
-
-      let newUsedToday = profile.tokensUsedToday + amount;
-      if (profile.lastResetDate !== today) {
-        newUsedToday = amount;
-      }
-
-      const updatedProfile: Partial<UserTokenProfile> = {
-        tokensUsedToday: newUsedToday,
-        totalTokensUsed: (profile.totalTokensUsed || 0) + amount,
-        lastResetDate: today,
-        updatedAt: new Date().toISOString(),
-      };
-
-      try {
-        await updateDoc(userDocRef, updatedProfile);
-        setProfile((prev) => (prev ? { ...prev, ...updatedProfile } as UserTokenProfile : null));
-        return newUsedToday <= profile.dailyLimit;
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
-        return false;
-      }
-    } else {
-      // Record guest usage in localStorage
-      const newGuestUsed = guestTokensUsed + amount;
-      setGuestTokensUsed(newGuestUsed);
-      try {
-        localStorage.setItem('adjdev_guest_tokens', newGuestUsed.toString());
-        localStorage.setItem('adjdev_guest_date', getTodayString());
-      } catch {}
-      return newGuestUsed <= DEFAULT_GUEST_DAILY_LIMIT;
-    }
+    await syncServerQuota();
+    return checkHasQuota(0);
   };
 
   return (
@@ -217,10 +218,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isAuthPending,
         authError,
+        deviceId,
         signInWithGoogle,
         logout,
         checkHasQuota,
         recordTokenUsage,
+        syncServerQuota,
         guestTokensUsed,
         guestDailyLimit: DEFAULT_GUEST_DAILY_LIMIT,
         clearAuthError,

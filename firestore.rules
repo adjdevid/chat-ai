@@ -32,5 +32,11 @@ service cloud.firestore {
         allow create, update, delete: if isOwner(userId) && isValidId(sessionId);
       }
     }
+
+    // Guest quotas - client read-only, server-write only
+    match /guest_quotas/{deviceId} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }

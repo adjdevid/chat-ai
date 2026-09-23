@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dataset, DeepAnalysisResult } from '../types';
+import { useAuth } from '../context/AuthContext';
 import {
   Sparkles,
   AlertTriangle,
@@ -17,6 +18,7 @@ interface DeepAuditPanelProps {
 }
 
 export const DeepAuditPanel: React.FC<DeepAuditPanelProps> = ({ dataset, onOpenInChat }) => {
+  const { deviceId, user, syncServerQuota } = useAuth();
   const [analysis, setAnalysis] = useState<DeepAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [customQuestion, setCustomQuestion] = useState('');
@@ -31,13 +33,23 @@ export const DeepAuditPanel: React.FC<DeepAuditPanelProps> = ({ dataset, onOpenI
     try {
       const response = await fetch('/api/analyze-data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+        },
         body: JSON.stringify({
           dataSample: dataset.data.slice(0, 40),
           schema: dataset.columns.map((c) => ({ name: c.name, type: c.type, stats: c.stats })),
           question: customQ || customQuestion || 'Analisis anomali, tren profitabilitas/efisiensi, dan rekomendasi aksi strategis.',
+          userId: user?.uid,
+          deviceId,
         }),
       });
+
+      if (response.status === 429) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Kuota token harian Anda telah habis.');
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
@@ -51,6 +63,7 @@ export const DeepAuditPanel: React.FC<DeepAuditPanelProps> = ({ dataset, onOpenI
       setErrorMsg(err.message || 'Gagal memproses audit data.');
     } finally {
       setLoading(false);
+      await syncServerQuota();
     }
   };
 

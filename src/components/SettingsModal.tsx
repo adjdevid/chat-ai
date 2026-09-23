@@ -33,7 +33,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSelectDataset,
   onOpenUploadModal,
 }) => {
-  const [activeTab, setActiveTab] = useState<'account' | 'datasets' | 'system'>('account');
+  const [activeTab, setActiveTab] = useState<'account' | 'datasets'>('account');
   const {
     user,
     profile,
@@ -64,7 +64,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-extrabold text-slate-900">Pengaturan Sistem & Akun</h3>
               <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
-                Kelola profil Google, batas token, import data, dan opsi AI
+                Kelola profil Google, batas token, dan import data
               </p>
             </div>
           </div>
@@ -97,16 +97,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Database className="w-3.5 h-3.5 shrink-0" /> <span>Import Data</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('system')}
-            className={`flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition whitespace-nowrap ${
-              activeTab === 'system'
-                ? 'bg-white text-cyan-900 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5 shrink-0" /> <span>AI Engine</span>
           </button>
         </div>
 
@@ -256,31 +246,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: System & Engine */}
-        {activeTab === 'system' && (
-          <div className="mt-5 space-y-4">
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
-              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-600" /> Spesifikasi ADJDEV AI Core
-              </span>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Menggunakan model <strong>Gemini 2.5 Flash Lite</strong> dengan arsitektur streaming SSE real-time ultra-cepat (~112.5 tokens/sec).
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1">
-                <span className="text-slate-400 font-medium block">Versi Server Proxy</span>
-                <span className="font-bold text-slate-900 font-mono">v2.4.0 (Express + Vite)</span>
-              </div>
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1">
-                <span className="text-slate-400 font-medium block">Database Persistence</span>
-                <span className="font-bold text-slate-900 font-mono">Firebase Firestore DB</span>
-              </div>
             </div>
           </div>
         )}

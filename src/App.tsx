@@ -30,6 +30,8 @@ export default function App() {
     profile,
     checkHasQuota,
     recordTokenUsage,
+    syncServerQuota,
+    deviceId,
     signInWithGoogle,
     guestTokensUsed,
     guestDailyLimit,
@@ -259,7 +261,10 @@ export default function App() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+        },
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           messages: updatedMessages
@@ -267,8 +272,16 @@ export default function App() {
             .map((m) => ({ role: m.role, content: m.content })),
           datasetSummary,
           mode: chatMode,
+          userId: user?.uid,
+          deviceId,
         }),
       });
+
+      if (response.status === 429) {
+        const errJson = await response.json().catch(() => ({}));
+        setShowQuotaModal(true);
+        throw new Error(errJson.message || 'Kuota token harian Anda telah habis.');
+      }
 
       if (!response.ok) {
         throw new Error(`Server returned HTTP ${response.status}`);
@@ -397,10 +410,7 @@ export default function App() {
     } finally {
       setIsStreaming(false);
       abortControllerRef.current = null;
-      if (accumulatedText.length > 0) {
-        const estTokens = streamStats?.tokenCount || Math.max(30, Math.round(accumulatedText.length / 3.8));
-        recordTokenUsage(estTokens);
-      }
+      await syncServerQuota();
     }
   };
 

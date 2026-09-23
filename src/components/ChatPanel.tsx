@@ -207,9 +207,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   <Cpu className="w-8 h-8 text-cyan-600" />
                 </div>
               </div>
-              <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-600 text-white shadow-xs">
-                FLASH LITE
-              </span>
             </div>
 
             <div className="space-y-1.5">
@@ -219,7 +216,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <p className="text-xs text-slate-600 leading-relaxed max-w-md font-medium">
                 {chatMode === 'general'
                   ? 'Asisten AI pintar serbaguna dengan respon super cepat untuk tanya jawab umum, pembuatan kode, brainstorming, dan analisis bebas.'
-                  : `Mesin komputasi data cerdas berbasis Flash Lite yang terhubung langsung dengan dataset '${activeDataset.name}'.`}
+                  : `Mesin komputasi data cerdas yang terhubung langsung dengan dataset '${activeDataset.name}'.`}
               </p>
             </div>
 
@@ -275,9 +272,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className="flex items-center justify-between gap-4 pb-2.5 mb-2.5 border-b border-slate-100 text-[11px] text-slate-400">
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-slate-900">ADJDEV AI</span>
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
-                          Flash Lite
-                        </span>
                       </div>
 
                       {message.stats && (
@@ -349,7 +343,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           <div className="flex items-center gap-3 max-w-4xl mx-auto pl-11">
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-cyan-200 text-xs text-cyan-800 shadow-2xs animate-pulse">
               <Sparkles className="w-3.5 h-3.5 animate-spin text-cyan-600" />
-              <span>ADJDEV Flash Lite sedang merespons...</span>
+              <span>ADJDEV AI sedang merespons...</span>
             </div>
             <button
               onClick={onStopStreaming}
@@ -414,7 +408,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
           <div className="flex items-center justify-between mt-2 px-1 text-[11px] text-slate-400">
             <span className="hidden sm:inline">Tekan <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 text-slate-600 font-mono text-[10px]">Enter</kbd> untuk kirim, <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 text-slate-600 font-mono text-[10px]">Shift+Enter</kbd> baris baru</span>
-            <span className="text-cyan-700 font-mono font-medium ml-auto">Model: Flash Lite (Ultra Low Latency)</span>
           </div>
         </form>
       </div>

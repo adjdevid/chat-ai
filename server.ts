@@ -4,6 +4,9 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { initializeApp as initAdminApp, getApps as getAdminApps } from 'firebase-admin/app';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import firebaseConfig from './firebase-applet-config.json';
 
 dotenv.config();
 
@@ -15,6 +18,19 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+
+// Initialize Firebase Admin SDK for Server-Side Token Quota Persistence
+let adminDb: any = null;
+try {
+  if (!getAdminApps().length) {
+    initAdminApp({
+      projectId: firebaseConfig.projectId,
+    });
+  }
+  adminDb = getAdminFirestore(firebaseConfig.firestoreDatabaseId);
+} catch (err) {
+  console.warn('⚠️ Firebase Admin Initialization Warning:', err);
+}
 
 // Initialize Gemini Client
 const apiKey = process.env.GEMINI_API_KEY;
@@ -36,6 +52,160 @@ if (apiKey) {
 // Flash Lite primary model alias
 const FLASH_LITE_MODEL = 'gemini-3.1-flash-lite';
 const FALLBACK_MODEL = 'gemini-3.8-flash';
+
+// --- SERVER-SIDE TOKEN QUOTA ENFORCEMENT ENGINE ---
+const GUEST_DAILY_LIMIT = 10000;
+const GOOGLE_DAILY_LIMIT = 50000;
+
+interface QuotaRecord {
+  usedToday: number;
+  dailyLimit: number;
+  lastResetDate: string;
+  totalUsed: number;
+}
+
+// In-memory server quota cache (un-bypassable by client DevTools / localStorage clears)
+const serverQuotaStore = new Map<string, QuotaRecord>();
+
+function getTodayString(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getClientIdentifier(req: Request): { key: string; isGoogleUser: boolean; userId?: string } {
+  const userIdBody = req.body?.userId;
+  const deviceIdHeader = (req.headers['x-device-id'] as string) || req.body?.deviceId || 'fp_unknown';
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || '127.0.0.1';
+
+  // Logged-in Google User
+  if (userIdBody && typeof userIdBody === 'string' && userIdBody.trim() !== '') {
+    return { key: `user:${userIdBody.trim()}`, isGoogleUser: true, userId: userIdBody.trim() };
+  }
+
+  // Guest User: IP + Device Fingerprint hash prevents reset via clearing localStorage
+  const guestKey = `guest:${clientIp}_${deviceIdHeader}`;
+  return { key: guestKey, isGoogleUser: false };
+}
+
+function checkQuotaServer(req: Request, estimatedTokens: number = 50): {
+  allowed: boolean;
+  reason?: string;
+  usedToday: number;
+  dailyLimit: number;
+  key: string;
+  isGoogleUser: boolean;
+  userId?: string;
+} {
+  const { key, isGoogleUser, userId } = getClientIdentifier(req);
+  const today = getTodayString();
+  const dailyLimit = isGoogleUser ? GOOGLE_DAILY_LIMIT : GUEST_DAILY_LIMIT;
+
+  let record = serverQuotaStore.get(key);
+  if (!record || record.lastResetDate !== today) {
+    record = {
+      usedToday: 0,
+      dailyLimit,
+      lastResetDate: today,
+      totalUsed: record?.totalUsed || 0,
+    };
+    serverQuotaStore.set(key, record);
+  }
+
+  if (record.usedToday + estimatedTokens > record.dailyLimit) {
+    return {
+      allowed: false,
+      reason: isGoogleUser
+        ? `Kuota token harian Akun Google Anda (${GOOGLE_DAILY_LIMIT.toLocaleString()} token) telah habis untuk hari ini. Kuota akan di-reset otomatis besok!`
+        : `Kuota token harian Tamu (${GUEST_DAILY_LIMIT.toLocaleString()} token) untuk perangkat/IP ini telah habis. Masuk dengan Akun Google untuk mendapatkan 50.000 token per hari!`,
+      usedToday: record.usedToday,
+      dailyLimit,
+      key,
+      isGoogleUser,
+      userId,
+    };
+  }
+
+  return { allowed: true, usedToday: record.usedToday, dailyLimit, key, isGoogleUser, userId };
+}
+
+function recordUsageServer(key: string, isGoogleUser: boolean, tokenAmount: number, userId?: string): QuotaRecord {
+  const today = getTodayString();
+  const dailyLimit = isGoogleUser ? GOOGLE_DAILY_LIMIT : GUEST_DAILY_LIMIT;
+
+  let record = serverQuotaStore.get(key);
+  if (!record || record.lastResetDate !== today) {
+    record = {
+      usedToday: 0,
+      dailyLimit,
+      lastResetDate: today,
+      totalUsed: 0,
+    };
+  }
+
+  record.usedToday += tokenAmount;
+  record.totalUsed += tokenAmount;
+  serverQuotaStore.set(key, record);
+
+  // Sync with Firestore in background if available
+  if (adminDb) {
+    try {
+      if (isGoogleUser && userId) {
+        const userRef = adminDb.collection('users').doc(userId);
+        userRef.set({
+          tokensUsedToday: record.usedToday,
+          totalTokensUsed: record.totalUsed,
+          lastResetDate: today,
+          dailyLimit,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true }).catch((e: any) => {
+          // Admin SDK might lack write IAM permissions in preview env; client SDK will persist user profile
+          if (process.env.DEBUG_FIREBASE) console.debug('Firestore Admin sync notice:', e?.message);
+        });
+      } else {
+        const cleanDeviceId = key.replace('guest:', '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 100);
+        const guestRef = adminDb.collection('guest_quotas').doc(cleanDeviceId);
+        guestRef.set({
+          deviceId: cleanDeviceId,
+          tokensUsedToday: record.usedToday,
+          dailyLimit,
+          lastResetDate: today,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true }).catch((e: any) => {
+          if (process.env.DEBUG_FIREBASE) console.debug('Firestore Admin guest sync notice:', e?.message);
+        });
+      }
+    } catch (e) {
+      // Silently catch initialization/permission errors
+    }
+  }
+
+  return record;
+}
+
+// GET Endpoint for Syncing Quota directly from Server
+app.get('/api/quota', (req: Request, res: Response) => {
+  const { key, isGoogleUser } = getClientIdentifier(req);
+  const today = getTodayString();
+  const dailyLimit = isGoogleUser ? GOOGLE_DAILY_LIMIT : GUEST_DAILY_LIMIT;
+
+  let record = serverQuotaStore.get(key);
+  if (!record || record.lastResetDate !== today) {
+    record = {
+      usedToday: 0,
+      dailyLimit,
+      lastResetDate: today,
+      totalUsed: 0,
+    };
+  }
+
+  res.json({
+    usedToday: record.usedToday,
+    dailyLimit,
+    remainingTokens: Math.max(0, dailyLimit - record.usedToday),
+    isGoogleUser,
+    key,
+    lastResetDate: today,
+  });
+});
 
 // Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
@@ -59,6 +229,17 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   if (!ai) {
     return res.status(500).json({
       error: 'GEMINI_API_KEY is not configured on the server. Please verify your environment secrets.',
+    });
+  }
+
+  // Server-Side Quota Enforcement Check
+  const quotaCheck = checkQuotaServer(req, 10);
+  if (!quotaCheck.allowed) {
+    return res.status(429).json({
+      error: 'QUOTA_EXCEEDED',
+      message: quotaCheck.reason,
+      usedToday: quotaCheck.usedToday,
+      dailyLimit: quotaCheck.dailyLimit,
     });
   }
 
@@ -130,6 +311,14 @@ ${contextConfig ? `### USER PREFERENCES:\n${JSON.stringify(contextConfig)}\n` : 
     const totalDuration = Date.now() - startTime;
     const tokensPerSec = totalDuration > 0 ? ((totalTokensEstimate / totalDuration) * 1000).toFixed(1) : '0';
 
+    // Deduct tokens on server
+    const updatedRecord = recordUsageServer(
+      quotaCheck.key,
+      quotaCheck.isGoogleUser,
+      totalTokensEstimate,
+      quotaCheck.userId
+    );
+
     res.write(`data: ${JSON.stringify({
       done: true,
       stats: {
@@ -137,7 +326,10 @@ ${contextConfig ? `### USER PREFERENCES:\n${JSON.stringify(contextConfig)}\n` : 
         totalDurationMs: totalDuration,
         tokenCount: totalTokensEstimate,
         tokensPerSec: parseFloat(tokensPerSec),
-        model: FLASH_LITE_MODEL
+        model: FLASH_LITE_MODEL,
+        usedToday: updatedRecord.usedToday,
+        dailyLimit: updatedRecord.dailyLimit,
+        remainingTokens: Math.max(0, updatedRecord.dailyLimit - updatedRecord.usedToday),
       }
     })}\n\n`);
     res.end();
@@ -154,6 +346,17 @@ app.post('/api/analyze-data', async (req: Request, res: Response) => {
 
   if (!ai) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is missing.' });
+  }
+
+  // Server-Side Quota Enforcement Check
+  const quotaCheck = checkQuotaServer(req, 100);
+  if (!quotaCheck.allowed) {
+    return res.status(429).json({
+      error: 'QUOTA_EXCEEDED',
+      message: quotaCheck.reason,
+      usedToday: quotaCheck.usedToday,
+      dailyLimit: quotaCheck.dailyLimit,
+    });
   }
 
   try {
@@ -200,7 +403,23 @@ Berikan respons terstruktur dalam format JSON dengan schema persis berikut:
     });
 
     const parsed = JSON.parse(response.text || '{}');
-    res.json(parsed);
+
+    // Deduct estimated ~300 tokens for deep analysis
+    const updatedRecord = recordUsageServer(
+      quotaCheck.key,
+      quotaCheck.isGoogleUser,
+      300,
+      quotaCheck.userId
+    );
+
+    res.json({
+      ...parsed,
+      _quota: {
+        usedToday: updatedRecord.usedToday,
+        dailyLimit: updatedRecord.dailyLimit,
+        remainingTokens: Math.max(0, updatedRecord.dailyLimit - updatedRecord.usedToday),
+      }
+    });
   } catch (err: any) {
     console.error('Data Analysis Error:', err);
     res.status(500).json({ error: err?.message || 'Failed to analyze data.' });

@@ -72,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
             <p className="text-[10px] text-slate-500 -mt-0.5 hidden sm:block font-mono">
-              Flash Lite Intelligence Core
+              Real-time AI Intelligence Engine
             </p>
           </div>
         </div>

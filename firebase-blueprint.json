@@ -30,6 +30,19 @@
         "updatedAt": { "type": "number" }
       },
       "required": ["id", "userId", "title"]
+    },
+    "GuestQuota": {
+      "title": "GuestQuota",
+      "description": "Server-tracked daily token limit for guest devices and IPs",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string", "maxLength": 128 },
+        "tokensUsedToday": { "type": "number" },
+        "dailyLimit": { "type": "number" },
+        "lastResetDate": { "type": "string", "maxLength": 10 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["deviceId"]
     }
   },
   "firestore": {
@@ -40,6 +53,10 @@
     "/users/{userId}/sessions/{sessionId}": {
       "schema": "UserSession",
       "description": "User saved chat sessions"
+    },
+    "/guest_quotas/{deviceId}": {
+      "schema": "GuestQuota",
+      "description": "Guest daily token usage tracking"
     }
   }
 }
