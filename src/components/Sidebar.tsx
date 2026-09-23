@@ -69,16 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Top: Brand Banner & New Chat Action & Settings */}
-        <div className="p-3.5 border-b border-slate-100 space-y-2.5">
-          <div className="bg-slate-950 p-2 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-center">
-            <img
-              src="/file_00000000dc6c81fa950390039bebb4c9.png"
-              alt="ADJDEV DEVELOP DESIGN DEPLOY"
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-
+        {/* Top: New Chat Action & Settings */}
+        <div className="p-3.5 border-b border-slate-100 space-y-2">
           <button
             onClick={() => {
               onNewSession();

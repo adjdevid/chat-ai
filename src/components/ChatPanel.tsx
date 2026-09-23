@@ -201,13 +201,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6 space-y-6 bg-slate-50/80">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[400px] text-center max-w-xl mx-auto space-y-5">
-            <div className="relative flex justify-center w-full max-w-md">
-              <div className="bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl shadow-cyan-900/10 flex items-center justify-center w-full">
-                <img
-                  src="/file_00000000dc6c81fa950390039bebb4c9.png"
-                  alt="ADJDEV DEVELOP DESIGN DEPLOY"
-                  className="h-12 sm:h-16 w-auto max-w-full object-contain"
-                />
+            <div className="relative">
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-cyan-600 to-indigo-600 p-0.5 shadow-xl shadow-cyan-600/15">
+                <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center">
+                  <Cpu className="w-8 h-8 text-cyan-600" />
+                </div>
               </div>
             </div>
 
@@ -255,12 +253,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 }`}
               >
                 {!isUser && (
-                  <div className="w-8 h-8 rounded-xl bg-black border border-slate-800 p-0.5 shrink-0 shadow-xs mt-1 overflow-hidden flex items-center justify-center">
-                    <img
-                      src="/file_00000000099c81fa869151d29ba1a5e7.png"
-                      alt="ADJDEV AI"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 p-0.5 shrink-0 shadow-xs mt-1">
+                    <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                      <Cpu className="w-4 h-4 text-cyan-600" />
+                    </div>
                   </div>
                 )}
 
